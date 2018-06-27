@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLParameters;
@@ -30,6 +31,9 @@ import redis.clients.jedis.util.Slowlog;
 
 public class Jedis extends BinaryJedis implements JedisCommands, MultiKeyCommands,
     AdvancedJedisCommands, ScriptingCommands, BasicCommands, ClusterCommands, SentinelCommands, ModuleCommands {
+
+  /** 用java自带logger打印日志，默认打印在控制台 **/
+  private static Logger logger = Logger.getLogger("redis.clients.jedis.BinaryJedis");
 
   protected JedisPoolAbstract dataSource = null;
 
@@ -3427,11 +3431,14 @@ public class Jedis extends BinaryJedis implements JedisCommands, MultiKeyCommand
   public void close() {
     if (dataSource != null) {
       if (client.isBroken()) {
+        logger.info("[debug-info]: jedis(broken) will return to pool，current jedis real IP："+this.client.getRealIp());
         this.dataSource.returnBrokenResource(this);
       } else {
+        logger.info("[debug-info]: jedis(normal) will return to pool，current jedis real IP："+this.client.getRealIp());
         this.dataSource.returnResource(this);
       }
     } else {
+      logger.info("[debug-info]: jedis will return(without pool)，current jedis real IP："+this.client.getRealIp());
       client.close();
     }
   }

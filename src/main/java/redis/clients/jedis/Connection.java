@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLParameters;
@@ -37,6 +38,19 @@ public class Connection implements Closeable {
   private SSLSocketFactory sslSocketFactory;
   private SSLParameters sslParameters;
   private HostnameVerifier hostnameVerifier;
+
+  /** 记录当前连接的实际redis node IP **/
+  private String realIp;
+  /** 用java自带logger打印日志，默认打印在控制台 **/
+  private static Logger logger = Logger.getLogger("redis.clients.jedis.Connection");
+
+  public String getRealIp() {
+    return realIp;
+  }
+
+  public void setRealIp(String realIp) {
+    this.realIp = realIp;
+  }
 
   public Connection() {
   }
@@ -124,6 +138,7 @@ public class Connection implements Closeable {
     try {
       connect();
       Protocol.sendCommand(outputStream, cmd, args);
+      logger.info("[debug-info] current jedis will execute command: "+cmd+" on redis: "+this.realIp);
     } catch (JedisConnectionException ex) {
       /*
        * When client send request which formed by invalid protocol, Redis send back error message
@@ -177,8 +192,11 @@ public class Connection implements Closeable {
         // the underlying socket is closed
         // immediately
         // <-@wjw_add
+        //add by james.you 2018-06-27
+        InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
+        realIp = inetSocketAddress.getAddress().getHostAddress();
 
-        socket.connect(new InetSocketAddress(host, port), connectionTimeout);
+        socket.connect(inetSocketAddress, connectionTimeout);
         socket.setSoTimeout(soTimeout);
 
         if (ssl) {
@@ -200,10 +218,12 @@ public class Connection implements Closeable {
         outputStream = new RedisOutputStream(socket.getOutputStream());
         inputStream = new RedisInputStream(socket.getInputStream());
       } catch (IOException ex) {
+        logger.info("[debug-Info]: Current Jedis Failed connecting to redis IP: "+realIp+"("+host+") port:"+port+" occur IOException");
         broken = true;
         throw new JedisConnectionException("Failed connecting to host " 
             + host + ":" + port, ex);
       }
+      logger.info("[debug-Info]: Current Jedis Connected redis IP: "+realIp+" port:"+port+" connTimeout:"+connectionTimeout+" soTimeout:"+soTimeout+" ,currentTime: "+(System.currentTimeMillis()/1000));
     }
   }
 
